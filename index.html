@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Temp Mail</title>
+    <style>
+        /* CSS styles are placed directly inside the HTML head */
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            background: #fff;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 24px;
+        }
+
+        .email-display {
+            display: flex;
+            margin-bottom: 15px;
+        }
+
+        #email-address {
+            flex-grow: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 5px 0 0 5px;
+            font-size: 16px;
+            background: #ecf0f1;
+            color: #2c3e50;
+            border-right: none;
+        }
+
+        #copy-btn {
+            padding: 12px 20px;
+            border: 1px solid #3498db;
+            background-color: #3498db;
+            color: white;
+            cursor: pointer;
+            border-radius: 0 5px 5px 0;
+            font-size: 14px;
+            transition: background-color 0.3s;
+        }
+
+        #copy-btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .actions {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+
+        .actions button {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background-color: #2ecc71;
+            color: white;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background-color 0.3s;
+        }
+
+        .actions button:hover {
+            background-color: #27ae60;
+        }
+
+        main h2 {
+            border-bottom: 2px solid #ecf0f1;
+            padding-bottom: 10px;
+            margin-bottom: 15px;
+            font-size: 20px;
+        }
+
+        #inbox-container {
+            border: 1px solid #ddd;
+            padding: 15px;
+            min-height: 250px;
+            background: #fdfdfd;
+            border-radius: 5px;
+            overflow-y: auto;
+        }
+
+        .email-item {
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .email-item:last-child {
+            border-bottom: none;
+        }
+        
+        .email-item:hover {
+            background: #f0f5f9;
+        }
+
+        .email-item p {
+            margin: 0;
+        }
+        
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.6);
+            overflow: auto;
+        }
+
+        .modal-content {
+            background-color: #fefefe;
+            margin: 10% auto;
+            padding: 25px;
+            border: 1px solid #888;
+            width: 90%;
+            max-width: 700px;
+            border-radius: 8px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            position: relative;
+        }
+
+        .close-btn {
+            color: #aaa;
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            font-size: 30px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        
+        #email-body {
+            margin-top: 20px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <header>
+            <h1>Your Temporary Email Address</h1>
+            <div class="email-display">
+                <input type="text" id="email-address" readonly>
+                <button id="copy-btn">Copy</button>
+            </div>
+            <div class="actions">
+                <button id="new-address-btn">Get New Address</button>
+                <button id="refresh-btn">Refresh Inbox</button>
+            </div>
+        </header>
+        <main>
+            <h2>Inbox</h2>
+            <div id="inbox-container">
+                <p>Your emails will appear here.</p>
+            </div>
+        </main>
+        <div id="email-view-modal" class="modal">
+            <div class="modal-content">
+                <span class="close-btn">&times;</span>
+                <h3 id="email-subject"></h3>
+                <p><strong>From:</strong> <span id="email-from"></span></p>
+                <hr>
+                <div id="email-body"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // JavaScript code is placed directly inside the HTML body
+        document.addEventListener('DOMContentLoaded', () => {
+            const emailAddressEl = document.getElementById('email-address');
+            const copyBtn = document.getElementById('copy-btn');
+            const newAddressBtn = document.getElementById('new-address-btn');
+            const refreshBtn = document.getElementById('refresh-btn');
+            const inboxContainer = document.getElementById('inbox-container');
+            
+            const modal = document.getElementById('email-view-modal');
+            const closeModalBtn = document.querySelector('.close-btn');
+            const emailSubjectEl = document.getElementById('email-subject');
+            const emailFromEl = document.getElementById('email-from');
+            const emailBodyEl = document.getElementById('email-body');
+
+            // This example uses the 1secmail API
+            const API_URL = 'https://www.1secmail.com/api/v1/';
+
+            let currentEmail = '';
+
+            // Function to get a new random email address
+            async function getNewEmailAddress() {
+                inboxContainer.innerHTML = '<p>Generating a new address...</p>';
+                try {
+                    const response = await fetch(`${API_URL}?action=genRandomMailbox&count=1`);
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    const data = await response.json();
+                    currentEmail = data[0];
+                    emailAddressEl.value = currentEmail;
+                    fetchEmails();
+                } catch (error) {
+                    console.error('Error generating new email:', error);
+                    inboxContainer.innerHTML = '<p>Could not generate email address. Please try again.</p>';
+                }
+            }
+
+            // Function to fetch emails for the current address
+            async function fetchEmails() {
+                if (!currentEmail) return;
+                
+                inboxContainer.innerHTML = '<p>Checking for emails...</p>';
+                const [login, domain] = currentEmail.split('@');
+                try {
+                    const response = await fetch(`${API_URL}?action=getMessages&login=${login}&domain=${domain}`);
+                    if (!response.ok) throw new Error('Failed to fetch');
+                    const emails = await response.json();
+                    displayEmails(emails);
+                } catch (error) {
+                    console.error('Error fetching emails:', error);
+                    inboxContainer.innerHTML = '<p>Error fetching emails. Please refresh.</p>';
+                }
+            }
+
+            // Function to display emails in the inbox
+            function displayEmails(emails) {
+                inboxContainer.innerHTML = '';
+                if (emails.length === 0) {
+                    inboxContainer.innerHTML = '<p>Your inbox is empty. Try refreshing in a moment.</p>';
+                    return;
+                }
+
+                emails.forEach(email => {
+                    const emailItem = document.createElement('div');
+                    emailItem.classList.add('email-item');
+                    emailItem.innerHTML = `
+                        <p><strong>From:</strong> ${email.from}</p>
+                        <p><strong>Subject:</strong> ${email.subject}</p>
+                    `;
+                    emailItem.addEventListener('click', () => openEmail(email.id));
+                    inboxContainer.appendChild(emailItem);
+                });
+            }
+
+            // Function to open and view a single email
+            async function openEmail(id) {
+                if (!currentEmail) return;
+                const [login, domain] = currentEmail.split('@');
+                try {
+                    const response = await fetch(`${API_URL}?action=readMessage&login=${login}&domain=${domain}&id=${id}`);
+                    if (!response.ok) throw new Error('Failed to open email');
+                    const emailData = await response.json();
+
+                    emailSubjectEl.textContent = emailData.subject;
+                    emailFromEl.textContent = emailData.from;
+                    emailBodyEl.innerHTML = emailData.htmlBody || emailData.textBody.replace(/\\n/g, '<br>');
+                    modal.style.display = 'block';
+
+                } catch (error) {
+                    console.error('Error opening email:', error);
+                    alert('Could not open the selected email.');
+                }
+            }
+
+            // Event Listeners
+            copyBtn.addEventListener('click', () => {
+                navigator.clipboard.writeText(emailAddressEl.value).then(() => {
+                    copyBtn.textContent = 'Copied!';
+                    setTimeout(() => { copyBtn.textContent = 'Copy'; }, 2000);
+                });
+            });
+
+            newAddressBtn.addEventListener('click', getNewEmailAddress);
+            refreshBtn.addEventListener('click', fetchEmails);
+            closeModalBtn.addEventListener('click', () => modal.style.display = 'none');
+            window.addEventListener('click', (event) => {
+                if (event.target == modal) {
+                    modal.style.display = 'none';
+                }
+            });
+
+            // Initial load to get the first email address
+            getNewEmailAddress();
+        });
+    </script>
+</body>
+</html>
